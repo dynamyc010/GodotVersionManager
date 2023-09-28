@@ -26,3 +26,9 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    - name: 'Upload Artifacts'
+      uses: actions/upload-artifact@v3
+      with:
+        name: Windows ${{ github.sha }}
+        path: |
+          bin/Debug/net7.0/
