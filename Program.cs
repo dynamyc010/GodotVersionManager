@@ -15,6 +15,7 @@ namespace GodotVersionManager
                 Console.WriteLine(versionManager.config.useSteam ? "Steam hours are being counted." : "Steam hours are not being counted.");
                 Console.WriteLine();
                 versionManager.listInstalledVersions();
+                Console.WriteLine("R. Rescan for versions");
                 Console.WriteLine("X. Change settings");
                 Console.WriteLine("Q. Quit");
                 Console.Write("> ");
@@ -29,6 +30,26 @@ namespace GodotVersionManager
                     else{
                         Console.WriteLine("Invalid version number.");
                     }
+                }
+
+                else if (input == "r"){
+                    if (Directory.Exists(versionManager.config.scanPath))
+                    {
+                        Console.WriteLine("Do you wish to clear already cached versions (excluding manually added versions)? (y/n)");
+                        Console.Write("> ");
+                        var clearInput = Console.ReadLine()?.ToLower();
+                        Console.Clear();
+                        versionManager.scanForVersions(clearInput == "y");
+                        Console.WriteLine("Done! Press any key to continue.");
+                        Console.ReadKey();
+                        Console.Clear();
+                    }
+                    else
+                    {
+                        Console.Clear();
+                        Console.WriteLine("Scan path not found, please update it in settings.");
+                    }
+                    versionManager.onSettingsChange();
                 }
                 else if(input == "x"){
                     // TODO: Implement settings

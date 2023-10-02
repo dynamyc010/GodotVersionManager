@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using Microsoft.Win32;
 using Steamworks;
+using Newtonsoft.Json;
 using Tommy;
 
 namespace GodotVersionManager.Utilities
@@ -113,6 +115,7 @@ namespace GodotVersionManager.Utilities
             }
         }
 
+        // TODO: Rewrite to scan for executables, preferable try to make it crossplatform.
         public void scanForVersions(bool? shouldClear = false){
             if (shouldClear ?? false)
             {
@@ -121,30 +124,68 @@ namespace GodotVersionManager.Utilities
             }
             Console.WriteLine("Scanning " + config.scanPath + " for Godot versions...");
             if(!Directory.Exists(config.scanPath)){
-                Console.WriteLine("Scan path not found, please create it or change the scan path in the Options menu.");
+                Console.WriteLine("Scan path doesn't exist, please create it or change the scan path in the Options menu.");
                 return;
             }
             string[] scanVersions = Directory.GetDirectories(config.scanPath);
             foreach (var version in scanVersions)
             {
                 string fullFoldername = Path.GetFileName(version);
-                string versionEngine = fullFoldername.Split('_')[1];
-                string executable = fullFoldername.EndsWith(".exe") ? fullFoldername : fullFoldername + ".exe";
+                string versionEngine = "";
+                string executable = "";
+                var files = Directory.GetFiles(version);
+                foreach(var file in files){
+                    if(OperatingSystem.IsWindows()){
+                        // In case it's not an exe, just leave it alone.
+                        if (!file.EndsWith(".exe")) continue;
+
+                        // Ignore the console file; we're the console
+                        if (file.EndsWith("console.exe")) continue;
+
+                        FileVersionInfo fileVersion = FileVersionInfo.GetVersionInfo(file);
+
+                        if(fileVersion.ProductName != "Godot Engine"){
+                            Console.WriteLine($"{file} doesn't seem to be a Godot Engine executable.");
+                            continue;
+                        }
+                        versionEngine = fileVersion.ProductVersion ?? (fileVersion.FileVersion != null ? ($"{fileVersion.FileMajorPart}.{fileVersion.FileMinorPart}.{fileVersion.FileBuildPart}") : "Unknown");
+
+                        if(versionEngine == ""){
+                            versionEngine = fileVersion.FileVersion ?? "Unknown";
+                        }
+
+                        executable = file;
+
+                        return;
+                    }
+                    else if(OperatingSystem.IsLinux()){
+                        throw new NotImplementedException("Linux is not yet supported; sorry!");
+                    }else{
+                        throw new NotImplementedException($"Your OS isn't yet supported; sorry!");
+                    }
+                }
+                //string versionEngine = fullFoldername.Split('_')[1];
+                //string executable = fullFoldername.EndsWith(".exe") ? fullFoldername : fullFoldername + ".exe";
+                if(versionEngine == "" || executable == ""){
+                    Console.WriteLine($"Couldn't find Godot executable in {version}. Might not be a Godot install.");
+                    return;
+                }
+                
 
                 string versionPath = @$"{config.scanPath}\{fullFoldername}";
 
-                if(!File.Exists($@"{versionPath}\{executable}")){
-                    Console.WriteLine($"Godot install inside {fullFoldername} seems incomplete, skipping...");
-                    Console.WriteLine($"Expected executable: {versionPath}\\{executable}");
-                    continue;
-                }
+                // if(!File.Exists(executable)){
+                //     Console.WriteLine($"Godot install inside {fullFoldername} seems incomplete, skipping...");
+                //     Console.WriteLine($"Expected executable: {versionPath}\\{executable}");
+                //     continue;
+                // }
 
                 if(config.godotVersions.Any(x => x.path == versionPath)){
                     Console.WriteLine($"Godot version {versionEngine} already known, skipping...");
                     continue;
                 }
 
-                config.godotVersions.Add(new GodotVersion(versionEngine, versionPath, executable));
+                config.godotVersions.Add(new GodotVersion(versionEngine, versionPath, executable, false, null));
 
                 // Make a ._sc_ file to tell Godot to not trash all around the system
                 if(!File.Exists($@"{versionPath}\._sc_")) 
@@ -189,5 +230,26 @@ namespace GodotVersionManager.Utilities
             }
             Console.Clear();
         }
+
+        // TODO: Finish this
+        // internal bool locateSteamVersion(){
+        //     var steamInstallDir = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Valve\\Steam", "InstallPath", null);
+
+        //     if(steamInstallDir == null){
+        //         steamInstallDir = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Valve\\Steam", "InstallPath", null);
+        //         if(steamInstallDir == null){
+        //             Console.WriteLine("Steam isn't installed.");
+        //             return false;
+        //         }
+        //     }
+
+        //     var libraryFolders = JsonConvert.DeserializeObject(File.ReadAllText(steamInstallDir + @"\libraryfolders.vdf"));
+
+        //     Console.WriteLine(libraryFolders);
+
+
+            
+        //     return true;
+        // }
     }
 }
